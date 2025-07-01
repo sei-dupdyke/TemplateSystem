@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 import os
+import hashlib
 
 app = FastAPI()
 
@@ -9,6 +10,19 @@ templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), 't
 
 # Cache for domain -> template name
 DOMAIN_TEMPLATES = {}
+
+# Known colors for specific domains
+DOMAIN_COLORS = {
+    "cnn.com": "#CC0000",
+}
+
+def domain_to_color(domain: str) -> str:
+    """Return a hex color based on the domain name."""
+    if domain in DOMAIN_COLORS:
+        return DOMAIN_COLORS[domain]
+    # Deterministically generate a color from the domain
+    hex_digest = hashlib.md5(domain.encode()).hexdigest()
+    return f"#{hex_digest[:6]}"
 
 TEMPLATE_DIR = templates.directory
 
@@ -44,7 +58,9 @@ async def mirror(full_path: str, request: Request):
         create_template(template_name, domain)
         DOMAIN_TEMPLATES[domain] = template_name
 
+    color = domain_to_color(domain)
+
     return templates.TemplateResponse(
         template_name,
-        {"request": request, "domain": domain, "path": subpath},
+        {"request": request, "domain": domain, "path": subpath, "color": color},
     )
